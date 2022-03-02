@@ -17,7 +17,6 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -44,13 +43,4 @@ public class Schedule extends BaseEntity<Long> {
 
     @OneToMany
     private List<Reservation> reservations;
-
-    public void addReservation(Reservation reservation) {
-        if (this.reservations == null) {
-            this.reservations = new ArrayList<>();
-        }
-
-        reservation.setSchedule(this);
-        this.reservations.add(reservation);
-    }
 }

@@ -1,12 +1,17 @@
 package com.tenniscourts.reservations;
 
-import com.tenniscourts.exceptions.EntityNotFoundException;
+import com.tenniscourts.guests.GuestRepository;
+import com.tenniscourts.schedules.ScheduleService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+
+import static com.tenniscourts.reservations.ReservationStatus.*;
+import static java.time.LocalDateTime.now;
+import static java.util.stream.Collectors.toList;
 
 @Service
 @AllArgsConstructor
@@ -16,78 +21,95 @@ public class ReservationService {
 
     private final ReservationMapper reservationMapper;
 
+    private final GuestRepository guestRepository;
+
+    private final ScheduleService scheduleService;
+
+    private final BigDecimal DEPOSIT = new BigDecimal(10);
+
     public ReservationDTO bookReservation(CreateReservationRequestDTO createReservationRequestDTO) {
-        throw new UnsupportedOperationException();
+        Reservation reservation = Reservation.builder()
+                .guest(guestRepository.getOne(createReservationRequestDTO.getGuestId()))
+                .schedule(scheduleService.getValidScheduleForReservation(createReservationRequestDTO.getScheduleId()))
+                .value(DEPOSIT)
+                .reservationStatus(READY_TO_PLAY)
+                .build();
+        return reservationMapper.map(reservationRepository.saveAndFlush(reservation));
     }
 
     public ReservationDTO findReservation(Long reservationId) {
-        return reservationRepository.findById(reservationId).map(reservationMapper::map).orElseThrow(() -> {
-            throw new EntityNotFoundException("Reservation not found.");
-        });
+        return reservationMapper.map(reservationRepository.getOne(reservationId));
     }
 
     public ReservationDTO cancelReservation(Long reservationId) {
-        return reservationMapper.map(this.cancel(reservationId));
+        Reservation reservation = reservationRepository.getOne(reservationId);
+        validateUpdate(reservation);
+        updateReservation(reservation, CANCELLED);
+        return reservationMapper.map(reservationRepository.saveAndFlush(reservation));
     }
 
-    private Reservation cancel(Long reservationId) {
-        return reservationRepository.findById(reservationId).map(reservation -> {
+    public ReservationDTO rescheduleReservation(Long previousReservationId, Long newScheduleId) {
+        Reservation reservation = reservationRepository.getOne(previousReservationId);
 
-            this.validateCancellation(reservation);
-
-            BigDecimal refundValue = getRefundValue(reservation);
-            return this.updateReservation(reservation, refundValue, ReservationStatus.CANCELLED);
-
-        }).orElseThrow(() -> {
-            throw new EntityNotFoundException("Reservation not found.");
-        });
-    }
-
-    private Reservation updateReservation(Reservation reservation, BigDecimal refundValue, ReservationStatus status) {
-        reservation.setReservationStatus(status);
-        reservation.setValue(reservation.getValue().subtract(refundValue));
-        reservation.setRefundValue(refundValue);
-
-        return reservationRepository.save(reservation);
-    }
-
-    private void validateCancellation(Reservation reservation) {
-        if (!ReservationStatus.READY_TO_PLAY.equals(reservation.getReservationStatus())) {
-            throw new IllegalArgumentException("Cannot cancel/reschedule because it's not in ready to play status.");
+        if (newScheduleId == null) {
+            throw new IllegalArgumentException("Schedule id cannot be null.");
         }
-
-        if (reservation.getSchedule().getStartDateTime().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Can cancel/reschedule only future dates.");
-        }
-    }
-
-    public BigDecimal getRefundValue(Reservation reservation) {
-        long hours = ChronoUnit.HOURS.between(LocalDateTime.now(), reservation.getSchedule().getStartDateTime());
-
-        if (hours >= 24) {
-            return reservation.getValue();
-        }
-
-        return BigDecimal.ZERO;
-    }
-
-    /*TODO: This method actually not fully working, find a way to fix the issue when it's throwing the error:
-            "Cannot reschedule to the same slot.*/
-    public ReservationDTO rescheduleReservation(Long previousReservationId, Long scheduleId) {
-        Reservation previousReservation = cancel(previousReservationId);
-
-        if (scheduleId.equals(previousReservation.getSchedule().getId())) {
+        if (newScheduleId.equals(reservation.getSchedule().getId())) {
             throw new IllegalArgumentException("Cannot reschedule to the same slot.");
         }
 
-        previousReservation.setReservationStatus(ReservationStatus.RESCHEDULED);
-        reservationRepository.save(previousReservation);
+        validateUpdate(reservation);
+        updateReservation(reservation, RESCHEDULED);
+        reservationRepository.saveAndFlush(reservation);
 
         ReservationDTO newReservation = bookReservation(CreateReservationRequestDTO.builder()
-                .guestId(previousReservation.getGuest().getId())
-                .scheduleId(scheduleId)
+                .guestId(reservation.getGuest().getId())
+                .scheduleId(newScheduleId)
                 .build());
-        newReservation.setPreviousReservation(reservationMapper.map(previousReservation));
+        newReservation.setPreviousReservation(reservationMapper.map(reservation));
         return newReservation;
     }
+
+    public List<ReservationDTO> findAllPastReservations() {
+        return reservationRepository.findAllBySchedule_StartDateTimeLessThanEqual(now())
+                .stream()
+                .map(reservationMapper::map)
+                .collect(toList());
+    }
+
+    private static void validateUpdate(Reservation reservation) {
+        if (!READY_TO_PLAY.equals(reservation.getReservationStatus())) {
+            throw new IllegalArgumentException("Can not update because it's not in ready to play status.");
+        }
+        if (reservation.getSchedule().getStartDateTime().isBefore(now())) {
+            throw new IllegalArgumentException("Can not update past reservations.");
+        }
+    }
+
+    private void updateReservation(Reservation reservation, ReservationStatus newStatus) {
+        BigDecimal refundValue = getRefundValue(reservation);
+        reservation.setReservationStatus(newStatus);
+        reservation.setValue(reservation.getValue().subtract(refundValue));
+        reservation.setRefundValue(refundValue);
+    }
+
+    private static BigDecimal getRefundValue(Reservation reservation) {
+        long minutes = ChronoUnit.MINUTES.between(now(), reservation.getSchedule().getStartDateTime());
+        long hours = minutes * 60;
+        if (hours >= 24) {
+            return calculateRefundValue(reservation, 1);
+        } else if (hours >= 12) {
+            return calculateRefundValue(reservation, .75);
+        } else if (hours >= 2) {
+            return calculateRefundValue(reservation, .5);
+        } else if (minutes >= 1) {
+            return calculateRefundValue(reservation, .25);
+        }
+        return calculateRefundValue(reservation, 0);
+    }
+
+    private static BigDecimal calculateRefundValue(Reservation reservation, double percentage) {
+        return reservation.getValue().multiply(BigDecimal.valueOf(percentage));
+    }
+
 }
