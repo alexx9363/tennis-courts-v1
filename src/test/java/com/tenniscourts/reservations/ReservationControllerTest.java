@@ -1,5 +1,6 @@
 package com.tenniscourts.reservations;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -14,11 +15,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 
@@ -31,6 +33,11 @@ public class ReservationControllerTest {
     @Mock
     private ReservationService reservationService;
 
+    @Mock
+    private ReservationMapper reservationMapper;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @InjectMocks
     private ReservationController reservationController;
 
@@ -41,8 +48,24 @@ public class ReservationControllerTest {
     }
 
     @Test
-    public void bookReservationTest() {
+    public void bookReservationTest() throws Exception {
+        Long reservationId = 1L;
+        CreateReservationRequestDTO createReservationRequestDTO = CreateReservationRequestDTO.builder().guestId(2L).scheduleId(3L).build();
 
+        ReservationDTO reservationDTO = ReservationDTO.builder()
+                .id(reservationId)
+                .guestId(2L)
+                .scheduledId(3L)
+                .reservationStatus(ReservationStatus.READY_TO_PLAY.name())
+                .value(new BigDecimal(10))
+                .build();
+        Mockito.when(reservationMapper.map((Reservation) Mockito.any())).thenReturn(reservationDTO);
+
+        mockMvc.perform(post("/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(createReservationRequestDTO)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("location", containsString("/reservations/" + reservationId)));
     }
 
     @Test
@@ -54,11 +77,10 @@ public class ReservationControllerTest {
                 .scheduledId(3L)
                 .reservationStatus(ReservationStatus.READY_TO_PLAY.name())
                 .value(new BigDecimal(10))
-                .refundValue(new BigDecimal(10))
                 .build();
-        Mockito.when(reservationService.findReservation(reservationId)).thenReturn(reservationDTO);
+        Mockito.when(reservationMapper.map((Reservation) Mockito.any())).thenReturn(reservationDTO);
 
-        mockMvc.perform(get("/reservations/1")
+        mockMvc.perform(get("/reservations/" + reservationId)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -66,7 +88,6 @@ public class ReservationControllerTest {
                 .andExpect(jsonPath("$.guestId", is(2)))
                 .andExpect(jsonPath("$.scheduledId", is(3)))
                 .andExpect(jsonPath("$.reservationStatus", is(ReservationStatus.READY_TO_PLAY.name())))
-                .andExpect(jsonPath("$.refundValue", is(10)))
                 .andExpect(jsonPath("$.value", is(10)));
     }
 
@@ -79,11 +100,10 @@ public class ReservationControllerTest {
                 .scheduledId(3L)
                 .reservationStatus(ReservationStatus.CANCELLED.name())
                 .value(new BigDecimal(10))
-                .refundValue(new BigDecimal(10))
                 .build();
-        Mockito.when(reservationService.cancelReservation(reservationId)).thenReturn(reservationDTO);
+        Mockito.when(reservationMapper.map((Reservation) Mockito.any())).thenReturn(reservationDTO);
 
-        mockMvc.perform(put("/reservations/1/cancel")
+        mockMvc.perform(put("/reservations/" + reservationId + "/cancel")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -91,7 +111,6 @@ public class ReservationControllerTest {
                 .andExpect(jsonPath("$.guestId", is(2)))
                 .andExpect(jsonPath("$.scheduledId", is(3)))
                 .andExpect(jsonPath("$.reservationStatus", is(ReservationStatus.CANCELLED.name())))
-                .andExpect(jsonPath("$.refundValue", is(10)))
                 .andExpect(jsonPath("$.value", is(10)));
     }
 
@@ -105,9 +124,8 @@ public class ReservationControllerTest {
                 .scheduledId(newScheduleId)
                 .reservationStatus(ReservationStatus.CANCELLED.name())
                 .value(new BigDecimal(10))
-                .refundValue(new BigDecimal(10))
                 .build();
-        Mockito.when(reservationService.rescheduleReservation(reservationId, newScheduleId)).thenReturn(rescheduledReservationDTO);
+        Mockito.when(reservationMapper.map((Reservation) Mockito.any())).thenReturn(rescheduledReservationDTO);
 
         mockMvc.perform(put("/reservations/reschedule")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -119,7 +137,6 @@ public class ReservationControllerTest {
                 .andExpect(jsonPath("$.guestId", is(2)))
                 .andExpect(jsonPath("$.scheduledId", is(4)))
                 .andExpect(jsonPath("$.reservationStatus", is(ReservationStatus.CANCELLED.name())))
-                .andExpect(jsonPath("$.refundValue", is(10)))
                 .andExpect(jsonPath("$.value", is(10)));
     }
 
@@ -141,7 +158,9 @@ public class ReservationControllerTest {
                 .value(new BigDecimal(10))
                 .refundValue(new BigDecimal(10))
                 .build();
-        Mockito.when(reservationService.findAllPastReservations()).thenReturn(List.of(firstReservation, secondReservation));
+        List<ReservationDTO> reservationDTOS = List.of(firstReservation, secondReservation);
+        Mockito.when(reservationService.findAllPastReservations()).thenReturn(new ArrayList<Reservation>());
+        Mockito.when(reservationMapper.map((List<Reservation>) Mockito.any())).thenReturn(reservationDTOS);
 
         mockMvc.perform(get("/reservations").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())

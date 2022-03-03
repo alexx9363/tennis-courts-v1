@@ -19,25 +19,23 @@ public class ScheduleService {
 
     private final ReservationRepository reservationRepository;
 
-    private final ScheduleMapper scheduleMapper;
-
     private final TennisCourtRepository tennisCourtRepository;
 
     private final static Long NUMBER_OF_HOURS_GUESTS_ALWAYS_PLAY = 1L;
 
-    public ScheduleDTO findSchedule(Long scheduleId) {
-        return scheduleMapper.map(scheduleRepository.getOne(scheduleId));
+    public Schedule findSchedule(Long scheduleId) {
+        return scheduleRepository.getOne(scheduleId);
     }
 
-    public List<ScheduleDTO> findSchedulesByDates(LocalDateTime startDate, LocalDateTime endDate) {
-        return scheduleMapper.map(scheduleRepository.findAllByStartDateTimeIsGreaterThanEqualAndEndDateTimeIsLessThanEqual(startDate, endDate));
+    public List<Schedule> findSchedulesByDates(LocalDateTime startDate, LocalDateTime endDate) {
+        return scheduleRepository.findAllByStartDateTimeIsGreaterThanEqualAndEndDateTimeIsLessThanEqual(startDate, endDate);
     }
 
-    public List<ScheduleDTO> findSchedulesByTennisCourtId(Long tennisCourtId) {
-        return scheduleMapper.map(scheduleRepository.findByTennisCourt_IdOrderByStartDateTime(tennisCourtId));
+    public List<Schedule> findSchedulesByTennisCourtId(Long tennisCourtId) {
+        return scheduleRepository.findByTennisCourt_IdOrderByStartDateTime(tennisCourtId);
     }
 
-    public Long addSchedule(CreateScheduleRequestDTO createScheduleRequestDTO) {
+    public Schedule addSchedule(CreateScheduleRequestDTO createScheduleRequestDTO) {
         if (createScheduleRequestDTO.getStartDateTime() == null) {
             throw new IllegalArgumentException("Schedule start date is missing");
         }
@@ -48,12 +46,10 @@ public class ScheduleService {
                 createScheduleRequestDTO.getTennisCourtId(), createScheduleRequestDTO.getStartDateTime()) != null) {
             throw new AlreadyExistsEntityException("The schedule is not available");
         }
-        return scheduleMapper.map(scheduleRepository.saveAndFlush(
-                Schedule.builder()
-                        .tennisCourt(tennisCourtRepository.getOne(createScheduleRequestDTO.getTennisCourtId()))
-                        .startDateTime(createScheduleRequestDTO.getStartDateTime())
-                        .endDateTime(createScheduleRequestDTO.getStartDateTime().plusHours(NUMBER_OF_HOURS_GUESTS_ALWAYS_PLAY))
-                        .build())).getId();
+        return scheduleRepository.saveAndFlush(Schedule.builder()
+                .tennisCourt(tennisCourtRepository.getOne(createScheduleRequestDTO.getTennisCourtId()))
+                .startDateTime(createScheduleRequestDTO.getStartDateTime())
+                .endDateTime(createScheduleRequestDTO.getStartDateTime().plusHours(NUMBER_OF_HOURS_GUESTS_ALWAYS_PLAY)).build());
     }
 
     public Schedule getValidScheduleForReservation(Long scheduleId) {

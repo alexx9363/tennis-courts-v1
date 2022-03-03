@@ -5,41 +5,37 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static java.util.stream.Collectors.toList;
-
 @Service
 @AllArgsConstructor
 public class GuestService {
 
     private final GuestRepository guestRepository;
 
-    private final GuestMapper guestMapper;
-
-    public GuestDTO findById(Long guestId) {
-        return guestMapper.map(guestRepository.getOne(guestId));
+    public Guest findById(Long guestId) {
+        return guestRepository.getOne(guestId);
     }
 
-    public List<GuestDTO> findAll() {
-        return guestRepository.findAll().stream().map(guestMapper::map).collect(toList());
+    public List<Guest> findAll() {
+        return guestRepository.findAll();
     }
 
-    public List<GuestDTO> findByName(String name) {
-        return guestRepository.findAllByName(name).stream().map(guestMapper::map).collect(toList());
+    public List<Guest> findByName(String name) {
+        return guestRepository.findAllByName(name);
     }
 
-    public List<GuestDTO> findByPartialName(String partialName) {
-        return guestRepository.findAllByNameContainsIgnoreCase(partialName).stream().map(guestMapper::map).collect(toList());
+    public List<Guest> findByPartialName(String partialName) {
+        return guestRepository.findAllByNameContainsIgnoreCase(partialName);
     }
 
-    public Long addGuest(CreateGuestRequestDTO guestDTO) {
-        return guestRepository.saveAndFlush(guestMapper.map(guestDTO)).getId();
+    public Long addGuest(Guest newGuest) {
+        return guestRepository.saveAndFlush(newGuest).getId();
     }
 
-    public Long updateGuest(GuestDTO guestDTO) {
-        if (guestDTO.getId() == null) {
+    public Long updateGuest(Guest guest) {
+        if (guest.getId() == null) {
             throw new IllegalArgumentException("Guest id is missing");
         }
-        return guestRepository.saveAndFlush(guestMapper.map(guestDTO)).getId();
+        return guestRepository.saveAndFlush(guest).getId();
     }
 
     public void deleteGuest(Long id) {

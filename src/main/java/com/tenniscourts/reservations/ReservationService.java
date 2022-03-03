@@ -11,7 +11,6 @@ import java.util.List;
 
 import static com.tenniscourts.reservations.ReservationStatus.*;
 import static java.time.LocalDateTime.now;
-import static java.util.stream.Collectors.toList;
 
 @Service
 @AllArgsConstructor
@@ -19,36 +18,34 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
 
-    private final ReservationMapper reservationMapper;
-
     private final GuestRepository guestRepository;
 
     private final ScheduleService scheduleService;
 
     private final BigDecimal DEPOSIT = new BigDecimal(10);
 
-    public ReservationDTO bookReservation(CreateReservationRequestDTO createReservationRequestDTO) {
+    public Reservation bookReservation(Long guestId, Long scheduleId) {
         Reservation reservation = Reservation.builder()
-                .guest(guestRepository.getOne(createReservationRequestDTO.getGuestId()))
-                .schedule(scheduleService.getValidScheduleForReservation(createReservationRequestDTO.getScheduleId()))
+                .guest(guestRepository.getOne(guestId))
+                .schedule(scheduleService.getValidScheduleForReservation(scheduleId))
                 .value(DEPOSIT)
                 .reservationStatus(READY_TO_PLAY)
                 .build();
-        return reservationMapper.map(reservationRepository.saveAndFlush(reservation));
+        return reservationRepository.saveAndFlush(reservation);
     }
 
-    public ReservationDTO findReservation(Long reservationId) {
-        return reservationMapper.map(reservationRepository.getOne(reservationId));
+    public Reservation findReservation(Long reservationId) {
+        return reservationRepository.getOne(reservationId);
     }
 
-    public ReservationDTO cancelReservation(Long reservationId) {
+    public Reservation cancelReservation(Long reservationId) {
         Reservation reservation = reservationRepository.getOne(reservationId);
         validateUpdate(reservation);
         updateReservation(reservation, CANCELLED);
-        return reservationMapper.map(reservationRepository.saveAndFlush(reservation));
+        return reservationRepository.saveAndFlush(reservation);
     }
 
-    public ReservationDTO rescheduleReservation(Long previousReservationId, Long newScheduleId) {
+    public Reservation rescheduleReservation(Long previousReservationId, Long newScheduleId) {
         Reservation reservation = reservationRepository.getOne(previousReservationId);
 
         if (newScheduleId == null) {
@@ -62,19 +59,11 @@ public class ReservationService {
         updateReservation(reservation, RESCHEDULED);
         reservationRepository.saveAndFlush(reservation);
 
-        ReservationDTO newReservation = bookReservation(CreateReservationRequestDTO.builder()
-                .guestId(reservation.getGuest().getId())
-                .scheduleId(newScheduleId)
-                .build());
-        newReservation.setPreviousReservation(reservationMapper.map(reservation));
-        return newReservation;
+        return bookReservation(reservation.getGuest().getId(), newScheduleId);
     }
 
-    public List<ReservationDTO> findAllPastReservations() {
-        return reservationRepository.findAllBySchedule_StartDateTimeLessThanEqual(now())
-                .stream()
-                .map(reservationMapper::map)
-                .collect(toList());
+    public List<Reservation> findAllPastReservations() {
+        return reservationRepository.findAllBySchedule_StartDateTimeLessThanEqual(now());
     }
 
     private static void validateUpdate(Reservation reservation) {
@@ -95,7 +84,7 @@ public class ReservationService {
 
     private static BigDecimal getRefundValue(Reservation reservation) {
         long minutes = ChronoUnit.MINUTES.between(now(), reservation.getSchedule().getStartDateTime());
-        long hours = minutes * 60;
+        long hours = minutes / 60;
         if (hours >= 24) {
             return calculateRefundValue(reservation, 1);
         } else if (hours >= 12) {

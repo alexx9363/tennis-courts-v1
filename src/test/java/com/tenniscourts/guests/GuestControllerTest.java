@@ -14,11 +14,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -30,6 +32,9 @@ public class GuestControllerTest {
 
     @Mock
     private GuestService guestService;
+
+    @Mock
+    private GuestMapper guestMapper;
 
     @InjectMocks
     private GuestController guestController;
@@ -45,7 +50,7 @@ public class GuestControllerTest {
     @Test
     public void findGuestTest() throws Exception {
         GuestDTO guestDTO = GuestDTO.builder().id(1L).name("First Guest").build();
-        Mockito.when(guestService.findById(1L)).thenReturn(guestDTO);
+        Mockito.when(guestMapper.map((Guest) any())).thenReturn(guestDTO);
         mockMvc.perform(get("/guests/1").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -58,7 +63,8 @@ public class GuestControllerTest {
         GuestDTO firstGuest = GuestDTO.builder().id(1L).name("First Guest").build();
         GuestDTO secondGuest = GuestDTO.builder().id(2L).name("Second Guest").build();
         List<GuestDTO> guests = Arrays.asList(firstGuest, secondGuest);
-        Mockito.when(guestService.findAll()).thenReturn(guests);
+        Mockito.when(guestService.findAll()).thenReturn(new ArrayList<Guest>());
+        Mockito.when(guestMapper.map((List<Guest>) any())).thenReturn(guests);
 
         mockMvc.perform(get("/guests").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -73,8 +79,10 @@ public class GuestControllerTest {
     public void findsGuestsByPartialNameTest() throws Exception {
         GuestDTO firstGuest = GuestDTO.builder().id(1L).name("First Guest").build();
         GuestDTO secondGuest = GuestDTO.builder().id(2L).name("Second Guest").build();
-        List<GuestDTO> guests = Arrays.asList(firstGuest, secondGuest);
-        Mockito.when(guestService.findByPartialName("Second")).thenReturn(List.of(secondGuest));
+        List<GuestDTO> guests = List.of(secondGuest);
+
+        Mockito.when(guestService.findByPartialName("Second")).thenReturn(new ArrayList<Guest>());
+        Mockito.when(guestMapper.map((List<Guest>) any())).thenReturn(guests);
 
         mockMvc.perform(get("/guests/search-in-name/Second").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -86,7 +94,8 @@ public class GuestControllerTest {
     @Test
     public void createGuestTest() throws Exception {
         CreateGuestRequestDTO firstGuest = CreateGuestRequestDTO.builder().name("First Guest").build();
-        Mockito.when(guestService.addGuest(firstGuest)).thenReturn(1L);
+
+        Mockito.when(guestService.addGuest(any())).thenReturn(1L);
 
         mockMvc.perform(post("/guests")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -98,7 +107,7 @@ public class GuestControllerTest {
     @Test
     public void updateGuestTest() throws Exception {
         GuestDTO firstGuest = GuestDTO.builder().id(1L).name("First Guest").build();
-        Mockito.when(guestService.updateGuest(firstGuest)).thenReturn(firstGuest.getId());
+        Mockito.when(guestService.updateGuest(any())).thenReturn(firstGuest.getId());
 
         mockMvc.perform(put("/guests")
                         .contentType(MediaType.APPLICATION_JSON)

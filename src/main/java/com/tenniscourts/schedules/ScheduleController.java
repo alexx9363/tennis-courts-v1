@@ -19,10 +19,12 @@ public class ScheduleController extends BaseRestController {
 
     private final ScheduleService scheduleService;
 
+    private final ScheduleMapper scheduleMapper;
+
     @ApiOperation(value = "Find a schedule by id")
     @GetMapping(value = "/{scheduleId}")
     public ResponseEntity<ScheduleDTO> findByScheduleId(@PathVariable Long scheduleId) {
-        return ResponseEntity.ok(scheduleService.findSchedule(scheduleId));
+        return ResponseEntity.ok(scheduleMapper.map(scheduleService.findSchedule(scheduleId)));
     }
 
     @ApiOperation(value = "Find schedules by start date and end date")
@@ -32,14 +34,14 @@ public class ScheduleController extends BaseRestController {
             @RequestParam(value = "endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         LocalTime beginningOfDay = LocalTime.of(0, 0);
         LocalTime endOfDay = LocalTime.of(23, 59, 59);
-        return ResponseEntity.ok(scheduleService.findSchedulesByDates(
+        return ResponseEntity.ok(scheduleMapper.map(scheduleService.findSchedulesByDates(
                 LocalDateTime.of(startDate, beginningOfDay),
-                LocalDateTime.of(endDate, endOfDay)));
+                LocalDateTime.of(endDate, endOfDay))));
     }
 
     @ApiOperation(value = "Add 1 hour schedule to a tennis court")
     @PostMapping
     public ResponseEntity<Void> addScheduleTennisCourt(@RequestBody CreateScheduleRequestDTO createScheduleRequestDTO) {
-        return ResponseEntity.created(locationByEntity(scheduleService.addSchedule(createScheduleRequestDTO))).build();
+        return ResponseEntity.created(locationByEntity(scheduleService.addSchedule(createScheduleRequestDTO).getId())).build();
     }
 }

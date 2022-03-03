@@ -36,9 +36,6 @@ public class ScheduleServiceTest {
     private ScheduleRepository scheduleRepository;
 
     @Mock
-    private ScheduleMapper scheduleMapper;
-
-    @Mock
     private TennisCourtRepository tennisCourtRepository;
 
     @Mock
@@ -50,27 +47,23 @@ public class ScheduleServiceTest {
     @Test
     public void findScheduleTest() {
         LocalDateTime tomorrowAtThisHour = LocalDateTime.now().plusDays(1);
+
+        TennisCourt tennisCourt = TennisCourt.builder().name("Tennis Court").build();
+        tennisCourt.setId(3L);
         Schedule schedule = Schedule.builder()
-                .tennisCourt(TennisCourt.builder().name("Tennis Court").build())
+                .tennisCourt(tennisCourt)
                 .startDateTime(tomorrowAtThisHour)
                 .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
         Long scheduleId = 1L;
         schedule.setId(scheduleId);
         when(scheduleRepository.getOne(scheduleId)).thenReturn(schedule);
 
-        ScheduleDTO scheduleDTO = ScheduleDTO.builder()
-                .id(scheduleId)
-                .tennisCourtId(3L)
-                .startDateTime(tomorrowAtThisHour)
-                .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
-        when(scheduleMapper.map(schedule)).thenReturn(scheduleDTO);
+        Schedule actualSchedule = scheduleService.findSchedule(scheduleId);
 
-        ScheduleDTO actualScheduleDTO = scheduleService.findSchedule(scheduleId);
-
-        assertEquals(1L, actualScheduleDTO.getId());
-        assertEquals(3L, actualScheduleDTO.getTennisCourtId());
-        assertEquals(tomorrowAtThisHour, actualScheduleDTO.getStartDateTime());
-        assertEquals(tomorrowAtThisHour.plusHours(1L), actualScheduleDTO.getEndDateTime());
+        assertEquals(1L, actualSchedule.getId());
+        assertEquals(3L, actualSchedule.getTennisCourt().getId());
+        assertEquals(tomorrowAtThisHour, actualSchedule.getStartDateTime());
+        assertEquals(tomorrowAtThisHour.plusHours(1L), actualSchedule.getEndDateTime());
     }
 
     @Test
@@ -80,14 +73,19 @@ public class ScheduleServiceTest {
         LocalDateTime searchRangeStart = tomorrowAtThisHour.minusDays(2);
         LocalDateTime searchRangeEnd = tomorrowAtThisHour.plusDays(2);
 
+        TennisCourt tennisCourt1 = TennisCourt.builder().name("Tennis Court 1").build();
+        tennisCourt1.setId(2L);
         Schedule schedule1 = Schedule.builder()
-                .tennisCourt(TennisCourt.builder().name("Tennis Court 1").build())
+                .tennisCourt(tennisCourt1)
                 .startDateTime(tomorrowAtThisHour)
                 .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
         Long scheduleId = 1L;
         schedule1.setId(scheduleId);
+
+        TennisCourt tennisCourt2 = TennisCourt.builder().name("Tennis Court 1").build();
+        tennisCourt2.setId(3L);
         Schedule schedule2 = Schedule.builder()
-                .tennisCourt(TennisCourt.builder().name("Tennis Court 2").build())
+                .tennisCourt(tennisCourt2)
                 .startDateTime(tomorrowAtThisHour)
                 .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
         Long scheduleId2 = 1L;
@@ -95,33 +93,21 @@ public class ScheduleServiceTest {
         when(scheduleRepository.findAllByStartDateTimeIsGreaterThanEqualAndEndDateTimeIsLessThanEqual(searchRangeStart, searchRangeEnd))
                 .thenReturn(List.of(schedule1, schedule2));
 
-        ScheduleDTO scheduleDTO1 = ScheduleDTO.builder()
-                .id(scheduleId)
-                .tennisCourtId(2L)
-                .startDateTime(tomorrowAtThisHour)
-                .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
-        ScheduleDTO scheduleDTO2 = ScheduleDTO.builder()
-                .id(scheduleId2)
-                .tennisCourtId(3L)
-                .startDateTime(tomorrowAtThisHour)
-                .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
-        when(scheduleMapper.map(List.of(schedule1, schedule2))).thenReturn(List.of(scheduleDTO1, scheduleDTO2));
+
+        List<Schedule> actualSchedules = scheduleService.findSchedulesByDates(searchRangeStart, searchRangeEnd);
 
 
-        List<ScheduleDTO> actualScheduleDTOs = scheduleService.findSchedulesByDates(searchRangeStart, searchRangeEnd);
+        Schedule actualSchedule1 = actualSchedules.get(0);
+        assertEquals(1L, actualSchedule1.getId());
+        assertEquals(2L, actualSchedule1.getTennisCourt().getId());
+        assertEquals(tomorrowAtThisHour, actualSchedule1.getStartDateTime());
+        assertEquals(tomorrowAtThisHour.plusHours(1L), actualSchedule1.getEndDateTime());
 
-
-        ScheduleDTO actualScheduleDTO1 = actualScheduleDTOs.get(0);
-        assertEquals(1L, actualScheduleDTO1.getId());
-        assertEquals(2L, actualScheduleDTO1.getTennisCourtId());
-        assertEquals(tomorrowAtThisHour, actualScheduleDTO1.getStartDateTime());
-        assertEquals(tomorrowAtThisHour.plusHours(1L), actualScheduleDTO1.getEndDateTime());
-
-        ScheduleDTO actualScheduleDTO2 = actualScheduleDTOs.get(1);
-        assertEquals(1L, actualScheduleDTO2.getId());
-        assertEquals(3L, actualScheduleDTO2.getTennisCourtId());
-        assertEquals(tomorrowAtThisHour, actualScheduleDTO2.getStartDateTime());
-        assertEquals(tomorrowAtThisHour.plusHours(1L), actualScheduleDTO2.getEndDateTime());
+        Schedule actualSchedule2 = actualSchedules.get(1);
+        assertEquals(1L, actualSchedule2.getId());
+        assertEquals(3L, actualSchedule2.getTennisCourt().getId());
+        assertEquals(tomorrowAtThisHour, actualSchedule2.getStartDateTime());
+        assertEquals(tomorrowAtThisHour.plusHours(1L), actualSchedule2.getEndDateTime());
     }
 
     @Test
@@ -129,8 +115,12 @@ public class ScheduleServiceTest {
         Long tennisCourtId = 1L;
 
         LocalDateTime tomorrowAtThisHour = LocalDateTime.now().plusDays(1);
+
+        TennisCourt tennisCourt1 = TennisCourt.builder().name("Tennis Court 1").build();
+        tennisCourt1.setId(1L);
+
         Schedule schedule = Schedule.builder()
-                .tennisCourt(TennisCourt.builder().name("Tennis Court").build())
+                .tennisCourt(tennisCourt1)
                 .startDateTime(tomorrowAtThisHour)
                 .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
         Long scheduleId = 1L;
@@ -138,7 +128,7 @@ public class ScheduleServiceTest {
 
         LocalDateTime nextScheduleTomorrow = tomorrowAtThisHour.plusHours(1);
         Schedule schedule2 = Schedule.builder()
-                .tennisCourt(TennisCourt.builder().name("Tennis Court").build())
+                .tennisCourt(tennisCourt1)
                 .startDateTime(nextScheduleTomorrow)
                 .endDateTime(nextScheduleTomorrow.plusHours(1L)).build();
         Long scheduleId2 = 2L;
@@ -146,31 +136,19 @@ public class ScheduleServiceTest {
 
         when(scheduleRepository.findByTennisCourt_IdOrderByStartDateTime(tennisCourtId)).thenReturn(List.of(schedule, schedule2));
 
-        ScheduleDTO scheduleDTO1 = ScheduleDTO.builder()
-                .id(scheduleId)
-                .tennisCourtId(tennisCourtId)
-                .startDateTime(tomorrowAtThisHour)
-                .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
-        ScheduleDTO scheduleDTO2 = ScheduleDTO.builder()
-                .id(scheduleId2)
-                .tennisCourtId(tennisCourtId)
-                .startDateTime(nextScheduleTomorrow)
-                .endDateTime(nextScheduleTomorrow.plusHours(1L)).build();
-        when(scheduleMapper.map(List.of(schedule, schedule2))).thenReturn(List.of(scheduleDTO1, scheduleDTO2));
+        List<Schedule> actualSchedules = scheduleService.findSchedulesByTennisCourtId(tennisCourtId);
 
-        List<ScheduleDTO> actualScheduleDTOs = scheduleService.findSchedulesByTennisCourtId(tennisCourtId);
+        Schedule actualSchedule1 = actualSchedules.get(0);
+        assertEquals(1L, actualSchedule1.getId());
+        assertEquals(1L, actualSchedule1.getTennisCourt().getId());
+        assertEquals(tomorrowAtThisHour, actualSchedule1.getStartDateTime());
+        assertEquals(tomorrowAtThisHour.plusHours(1L), actualSchedule1.getEndDateTime());
 
-        ScheduleDTO actualScheduleDTO1 = actualScheduleDTOs.get(0);
-        assertEquals(1L, actualScheduleDTO1.getId());
-        assertEquals(1L, actualScheduleDTO1.getTennisCourtId());
-        assertEquals(tomorrowAtThisHour, actualScheduleDTO1.getStartDateTime());
-        assertEquals(tomorrowAtThisHour.plusHours(1L), actualScheduleDTO1.getEndDateTime());
-
-        ScheduleDTO actualScheduleDTO2 = actualScheduleDTOs.get(1);
-        assertEquals(2L, actualScheduleDTO2.getId());
-        assertEquals(1L, actualScheduleDTO2.getTennisCourtId());
-        assertEquals(nextScheduleTomorrow, actualScheduleDTO2.getStartDateTime());
-        assertEquals(nextScheduleTomorrow.plusHours(1L), actualScheduleDTO2.getEndDateTime());
+        Schedule actualSchedule = actualSchedules.get(1);
+        assertEquals(2L, actualSchedule.getId());
+        assertEquals(1L, actualSchedule.getTennisCourt().getId());
+        assertEquals(nextScheduleTomorrow, actualSchedule.getStartDateTime());
+        assertEquals(nextScheduleTomorrow.plusHours(1L), actualSchedule.getEndDateTime());
     }
 
 
@@ -188,24 +166,15 @@ public class ScheduleServiceTest {
                 .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
         when(scheduleRepository.saveAndFlush(schedule)).thenReturn(schedule);
 
-
-        ScheduleDTO scheduleDTO = ScheduleDTO.builder()
-                .id(1L)
-                .tennisCourtId(tennisCourtId)
-                .startDateTime(tomorrowAtThisHour)
-                .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
-        when(scheduleMapper.map(schedule)).thenReturn(scheduleDTO);
-
         when(scheduleRepository.findByTennisCourt_IdAndStartDateTimeEquals(tennisCourtId, tomorrowAtThisHour)).thenReturn(null);
 
-
-        Long actualId = scheduleService.addSchedule(CreateScheduleRequestDTO.builder()
+        Schedule actualSchedule = scheduleService.addSchedule(CreateScheduleRequestDTO.builder()
                 .tennisCourtId(1L)
-                .startDateTime(tomorrowAtThisHour)
-                .build());
+                .startDateTime(tomorrowAtThisHour).build());
 
-
-        assertEquals(1L, actualId);
+        assertEquals(1L, actualSchedule.getTennisCourt().getId());
+        assertEquals(tomorrowAtThisHour, actualSchedule.getStartDateTime());
+        assertEquals(tomorrowAtThisHour.plusHours(1L), actualSchedule.getEndDateTime());
     }
 
     @Test
@@ -252,13 +221,11 @@ public class ScheduleServiceTest {
                 .endDateTime(tomorrowAtThisHour.plusHours(1L)).build();
         when(scheduleRepository.findByTennisCourt_IdAndStartDateTimeEquals(tennisCourtId, tomorrowAtThisHour)).thenReturn(scheduleAreadyExistent);
 
-
         AlreadyExistsEntityException exception = assertThrows(AlreadyExistsEntityException.class, () ->
                 scheduleService.addSchedule(CreateScheduleRequestDTO.builder()
                         .tennisCourtId(1L)
                         .startDateTime(tomorrowAtThisHour)
                         .build()));
-
 
         assertEquals("The schedule is not available", exception.getMessage());
     }
@@ -268,10 +235,10 @@ public class ScheduleServiceTest {
         Long scheduleId = 1L;
         Reservation reservationCanceled = Reservation.builder().reservationStatus(CANCELLED).build();
         Reservation reservationReadyToPlay = Reservation.builder().reservationStatus(READY_TO_PLAY).build();
-        when(reservationRepository.findBySchedule_Id(scheduleId)).thenReturn(List.of(reservationCanceled,reservationReadyToPlay));
+        when(reservationRepository.findBySchedule_Id(scheduleId)).thenReturn(List.of(reservationCanceled, reservationReadyToPlay));
         AlreadyExistsEntityException exception = Assertions.assertThrows(AlreadyExistsEntityException.class,
                 () -> scheduleService.getValidScheduleForReservation(scheduleId));
-        Assertions.assertEquals("Reservation already exists",exception.getMessage());
+        Assertions.assertEquals("Reservation already exists", exception.getMessage());
     }
 
     @Test
@@ -286,7 +253,7 @@ public class ScheduleServiceTest {
 
         IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class,
                 () -> scheduleService.getValidScheduleForReservation(scheduleId));
-        Assertions.assertEquals("Start date can not be older than today",exception.getMessage());
+        Assertions.assertEquals("Start date can not be older than today", exception.getMessage());
     }
 
     @Test

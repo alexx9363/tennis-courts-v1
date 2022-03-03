@@ -1,6 +1,7 @@
 package com.tenniscourts.schedules;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tenniscourts.tenniscourts.TennisCourt;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -33,6 +34,9 @@ public class ScheduleControllerTest {
     @Mock
     private ScheduleService scheduleService;
 
+    @Mock
+    private ScheduleMapper scheduleMapper;
+
     @InjectMocks
     private ScheduleController scheduleController;
 
@@ -52,7 +56,7 @@ public class ScheduleControllerTest {
                 .startDateTime(LocalDateTime.of(2022, 3, 2, 12, 0, 0))
                 .endDateTime(LocalDateTime.of(2022, 3, 2, 13, 0, 0))
                 .build();
-        Mockito.when(scheduleService.findSchedule(1L)).thenReturn(scheduleDTO);
+        Mockito.when(scheduleMapper.map((Schedule) any())).thenReturn(scheduleDTO);
         mockMvc.perform(get("/schedules/1").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -76,10 +80,7 @@ public class ScheduleControllerTest {
                 .startDateTime(LocalDateTime.of(2022, 3, 3, 12, 0, 0))
                 .endDateTime(LocalDateTime.of(2022, 3, 3, 13, 0, 0))
                 .build();
-        Mockito.when(scheduleService.findSchedulesByDates(
-                        LocalDateTime.of(2022, 3, 1, 0, 0, 0),
-                        LocalDateTime.of(2022, 3, 4, 23, 59, 59)))
-                .thenReturn(List.of(secondDayOfMarchScheduleDTO, thirdDayOfMarchScheduleDTO));
+        Mockito.when(scheduleMapper.map((List<Schedule>) any())).thenReturn(List.of(secondDayOfMarchScheduleDTO, thirdDayOfMarchScheduleDTO));
 
         mockMvc.perform(get("/schedules")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,12 +100,19 @@ public class ScheduleControllerTest {
 
     @Test
     public void addScheduleTennisCourtTest() throws Exception {
+        LocalDateTime tomorrow = LocalDateTime.now().plusDays(1);
+
         CreateScheduleRequestDTO createScheduleRequestDTO = CreateScheduleRequestDTO
                 .builder()
                 .tennisCourtId(1L)
-                .startDateTime(LocalDateTime.now().plusDays(1))
+                .startDateTime(tomorrow)
                 .build();
-        Mockito.when(scheduleService.addSchedule(any())).thenReturn(1L);
+
+        TennisCourt tennisCourt = TennisCourt.builder().name("anything").build();
+        tennisCourt.setId(1L);
+        Schedule schedule = Schedule.builder().tennisCourt(tennisCourt).startDateTime(tomorrow).build();
+        schedule.setId(1L);
+        Mockito.when(scheduleService.addSchedule(any())).thenReturn(schedule);
 
         mockMvc.perform(post("/schedules")
                         .contentType(MediaType.APPLICATION_JSON)

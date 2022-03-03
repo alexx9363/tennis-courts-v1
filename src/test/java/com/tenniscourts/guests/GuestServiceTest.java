@@ -25,9 +25,6 @@ public class GuestServiceTest {
     @Mock
     private GuestRepository guestRepository;
 
-    @Mock
-    private GuestMapper guestMapper;
-
     @InjectMocks
     private GuestService guestService;
 
@@ -37,29 +34,27 @@ public class GuestServiceTest {
         Guest guest = Guest.builder().name("Any Guest").build();
         guest.setId(guestId);
         Mockito.when(guestRepository.getOne(guestId)).thenReturn(guest);
-        GuestDTO guestDTO = GuestDTO.builder().id(guestId).name("Any Guest").build();
-        Mockito.when(guestMapper.map(guest)).thenReturn(guestDTO);
 
-        GuestDTO actualGuestDTO = guestService.findById(guestId);
+        Guest actualGuest = guestService.findById(guestId);
 
-        Assertions.assertEquals(1L, actualGuestDTO.getId());
-        Assertions.assertEquals("Any Guest", actualGuestDTO.getName());
+        Assertions.assertEquals(1L, actualGuest.getId());
+        Assertions.assertEquals("Any Guest", actualGuest.getName());
     }
 
     @Test
     public void findAllTest() {
         Guest guest1 = Guest.builder().name("First Guest").build();
+        guest1.setId(1L);
         Guest guest2 = Guest.builder().name("Second Guest").build();
+        guest2.setId(2L);
         Mockito.when(guestRepository.findAll()).thenReturn(Arrays.asList(guest1, guest2));
-        Mockito.when(guestMapper.map(guest1)).thenReturn(GuestDTO.builder().id(1L).name("First Guest").build());
-        Mockito.when(guestMapper.map(guest2)).thenReturn(GuestDTO.builder().id(2L).name("Second Guest").build());
 
-        List<GuestDTO> actualGuestDTOs = guestService.findAll();
+        List<Guest> actualGuests = guestService.findAll();
 
-        GuestDTO firstGuest = actualGuestDTOs.get(0);
+        Guest firstGuest = actualGuests.get(0);
         Assertions.assertEquals(1L, firstGuest.getId());
         Assertions.assertEquals("First Guest", firstGuest.getName());
-        GuestDTO secondGuest = actualGuestDTOs.get(1);
+        Guest secondGuest = actualGuests.get(1);
         Assertions.assertEquals(2L, secondGuest.getId());
         Assertions.assertEquals("Second Guest", secondGuest.getName());
     }
@@ -67,13 +62,12 @@ public class GuestServiceTest {
     @Test
     public void findByNameTest() {
         Guest guest1 = Guest.builder().name("First Guest").build();
-        Guest guest2 = Guest.builder().name("Second Guest").build();
+        guest1.setId(1L);
         Mockito.when(guestRepository.findAllByName("First Guest")).thenReturn(List.of(guest1));
-        Mockito.when(guestMapper.map(guest1)).thenReturn(GuestDTO.builder().id(1L).name("First Guest").build());
 
-        List<GuestDTO> actualGuestDTOs = guestService.findByName("First Guest");
+        List<Guest> actualGuests = guestService.findByName("First Guest");
 
-        GuestDTO firstGuest = actualGuestDTOs.get(0);
+        Guest firstGuest = actualGuests.get(0);
         Assertions.assertEquals(1L, firstGuest.getId());
         Assertions.assertEquals("First Guest", firstGuest.getName());
     }
@@ -81,18 +75,18 @@ public class GuestServiceTest {
     @Test
     public void findByPartialNameTest() {
         Guest guest1 = Guest.builder().name("First Guest").build();
+        guest1.setId(1L);
         Guest guest2 = Guest.builder().name("Second Guest").build();
+        guest2.setId(2L);
         Guest someoneElse = Guest.builder().name("Someone Else").build();
         Mockito.when(guestRepository.findAllByNameContainsIgnoreCase("Guest")).thenReturn(Arrays.asList(guest1, guest2));
-        Mockito.when(guestMapper.map(guest1)).thenReturn(GuestDTO.builder().id(1L).name("First Guest").build());
-        Mockito.when(guestMapper.map(guest2)).thenReturn(GuestDTO.builder().id(2L).name("Second Guest").build());
 
-        List<GuestDTO> actualGuestDTOs = guestService.findByPartialName("Guest");
+        List<Guest> actualGuests = guestService.findByPartialName("Guest");
 
-        GuestDTO firstGuest = actualGuestDTOs.get(0);
+        Guest firstGuest = actualGuests.get(0);
         Assertions.assertEquals(1L, firstGuest.getId());
         Assertions.assertEquals("First Guest", firstGuest.getName());
-        GuestDTO secondGuest = actualGuestDTOs.get(1);
+        Guest secondGuest = actualGuests.get(1);
         Assertions.assertEquals(2L, secondGuest.getId());
         Assertions.assertEquals("Second Guest", secondGuest.getName());
     }
@@ -102,30 +96,26 @@ public class GuestServiceTest {
         Guest guest = Guest.builder().name("Second Guest").build();
         Mockito.when(guestRepository.saveAndFlush(guest)).thenReturn(guest);
         guest.setId(2L);
-        CreateGuestRequestDTO createGuestRequestDTO = CreateGuestRequestDTO.builder().name("Second Guest").build();
-        Mockito.when(guestMapper.map(createGuestRequestDTO)).thenReturn(guest);
 
-        Long actualId = guestService.addGuest(createGuestRequestDTO);
+        Long actualId = guestService.addGuest(guest);
 
         Assertions.assertEquals(2L, actualId);
     }
 
     @Test
     public void updateGuestTest() {
-        GuestDTO guestWithUpdatedNameDTO = GuestDTO.builder().id(3L).name("Updated Guest").build();
         Guest guestWithUpdatedName = Guest.builder().name("Updated Guest").build();
         guestWithUpdatedName.setId(3L);
-        Mockito.when(guestMapper.map(guestWithUpdatedNameDTO)).thenReturn(guestWithUpdatedName);
         Mockito.when(guestRepository.saveAndFlush(guestWithUpdatedName)).thenReturn(guestWithUpdatedName);
 
-        Long actualId = guestService.updateGuest(guestWithUpdatedNameDTO);
+        Long actualId = guestService.updateGuest(guestWithUpdatedName);
 
         Assertions.assertEquals(3L, actualId);
     }
 
     @Test
     public void updateGuestTest_shouldThrowException() {
-        GuestDTO guestWithNoId = GuestDTO.builder().name("guestWithNoId").build();
+        Guest guestWithNoId = Guest.builder().name("guestWithNoId").build();
         IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> guestService.updateGuest(guestWithNoId));
         Assertions.assertEquals("Guest id is missing", exception.getMessage());
     }
