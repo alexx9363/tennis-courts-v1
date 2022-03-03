@@ -151,7 +151,7 @@ public class ReservationServiceTest {
 
     @Test
     public void cancelReservationTest_fullRefund() {
-        Schedule schedule = Schedule.builder().startDateTime(LocalDateTime.now().plusDays(1)).build();
+        Schedule schedule = Schedule.builder().startDateTime(LocalDateTime.now().plusDays(2)).build();
 
         Long reservationId = 1L;
         Reservation reservation = Reservation.builder()
@@ -167,6 +167,7 @@ public class ReservationServiceTest {
 
         assertEquals(1L, actualCanceledReservation.getId());
         assertEquals(CANCELLED, actualCanceledReservation.getReservationStatus());
+
         assertTrue(BigDecimal.valueOf(0).compareTo(actualCanceledReservation.getValue()) == 0);
         assertTrue(BigDecimal.valueOf(10).compareTo(actualCanceledReservation.getRefundValue()) == 0);
     }
